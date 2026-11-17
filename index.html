@@ -77,12 +77,53 @@ dirBtn.addEventListener("click", () => {
   counter.textContent = "0/3000";
 });
 
+function jsonpYandex(text, yaLang) {
+  return new Promise((resolve, reject) => {
+    const cbName = "yaCb_" + Date.now() + "_" + Math.floor(Math.random() * 10000);
+    const script = document.createElement("script");
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(new Error("timeout"));
+    }, 6000);
+
+    function cleanup() {
+      clearTimeout(timer);
+      delete window[cbName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+    }
+
+    window[cbName] = function(data) {
+      cleanup();
+      if (data && Array.isArray(data.text) && data.text.length > 0) {
+        resolve(data.text.join(" "));
+      } else {
+        reject(new Error("empty"));
+      }
+    };
+
+    script.onerror = function() {
+      cleanup();
+      reject(new Error("script_error"));
+    };
+
+    script.src = "https://yandex.net" + yaLang + "&text=" + encodeURIComponent(text) + "&callback=" + cbName;
+    document.body.appendChild(script);
+  });
+}
+
 async function fetchOnlineTranslation(text, sl, tl) {
+  const yaLang = (sl === "zh-CN") ? "zh-ru" : "ru-zh";
+
   try {
-    const yaLang = (sl === "zh-CN") ? "zh-ru" : "ru-zh";
+    const yaRes = await jsonpYandex(text, yaLang);
+    if (yaRes) return yaRes;
+  } catch (e) {}
+
+  try {
     const yaUrl = "https://yandex.net" + yaLang + "&text=" + encodeURIComponent(text);
-    const res = await fetch(yaUrl);
-    const data = await res.json();
+    const res = await fetch("https://allorigins.win" + encodeURIComponent(yaUrl));
+    const wrapper = await res.json();
+    const data = JSON.parse(wrapper.contents);
     if (data && Array.isArray(data.text) && data.text.length > 0) {
       return data.text.join(" ");
     }
@@ -95,23 +136,6 @@ async function fetchOnlineTranslation(text, sl, tl) {
     if (data && data.responseData && data.responseData.translatedText) {
       return data.responseData.translatedText;
     }
-  } catch (e) {}
-
-  try {
-    const url = "https://googleapis.com" + sl + "&tl=" + tl + "&dt=t&q=" + encodeURIComponent(text);
-    const res = await fetch(url);
-    const data = await res.json();
-    let result = "";
-    const sentences = Array.isArray(data) ? data.at(0) : null;
-    if (Array.isArray(sentences)) {
-      for (let i = 0; i < sentences.length; i++) {
-        const part = sentences.at(i);
-        if (Array.isArray(part) && part.at(0)) {
-          result += part.at(0);
-        }
-      }
-    }
-    if (result) return result;
   } catch (e) {}
 
   return "Ошибка сети. Проверьте интернет на телефоне.";
