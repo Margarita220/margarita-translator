@@ -77,68 +77,30 @@ dirBtn.addEventListener("click", () => {
   counter.textContent = "0/3000";
 });
 
-function jsonpYandex(text, yaLang) {
-  return new Promise((resolve, reject) => {
-    const cbName = "yaCb_" + Date.now() + "_" + Math.floor(Math.random() * 10000);
-    const script = document.createElement("script");
-    const timer = setTimeout(() => {
-      cleanup();
-      reject(new Error("timeout"));
-    }, 6000);
-
-    function cleanup() {
-      clearTimeout(timer);
-      delete window[cbName];
-      if (script.parentNode) script.parentNode.removeChild(script);
-    }
-
-    window[cbName] = function(data) {
-      cleanup();
-      if (data && Array.isArray(data.text) && data.text.length > 0) {
-        resolve(data.text.join(" "));
-      } else {
-        reject(new Error("empty"));
-      }
-    };
-
-    script.onerror = function() {
-      cleanup();
-      reject(new Error("script_error"));
-    };
-
-    script.src = "https://yandex.net" + yaLang + "&text=" + encodeURIComponent(text) + "&callback=" + cbName;
-    document.body.appendChild(script);
-  });
-}
-
 async function fetchOnlineTranslation(text, sl, tl) {
-  const yaLang = (sl === "zh-CN") ? "zh-ru" : "ru-zh";
+  const fromCode = (sl === "zh-CN") ? "zh-CN" : "ru";
+  const toCode = (tl === "zh-CN") ? "zh-CN" : "ru";
 
   try {
-    const yaRes = await jsonpYandex(text, yaLang);
-    if (yaRes) return yaRes;
-  } catch (e) {}
-
-  try {
-    const yaUrl = "https://yandex.net" + yaLang + "&text=" + encodeURIComponent(text);
-    const res = await fetch("https://allorigins.win" + encodeURIComponent(yaUrl));
-    const wrapper = await res.json();
-    const data = JSON.parse(wrapper.contents);
-    if (data && Array.isArray(data.text) && data.text.length > 0) {
-      return data.text.join(" ");
-    }
-  } catch (e) {}
-
-  try {
-    const pair = encodeURIComponent(sl + "|" + tl);
-    const res = await fetch("https://translated.net" + encodeURIComponent(text) + "&langpair=" + pair);
+    const url = "https://translated.net" + encodeURIComponent(text) + "&langpair=" + fromCode + "|" + toCode;
+    const res = await fetch(url);
     const data = await res.json();
     if (data && data.responseData && data.responseData.translatedText) {
       return data.responseData.translatedText;
     }
   } catch (e) {}
 
-  return "Ошибка сети. Проверьте интернет на телефоне.";
+  try {
+    const fSl = (sl === "zh-CN") ? "zh" : "ru";
+    const fTl = (tl === "zh-CN") ? "zh" : "ru";
+    const res = await fetch("https://pythonanywhere.com" + fSl + "&dl=" + fTl + "&text=" + encodeURIComponent(text));
+    const data = await res.json();
+    if (data && data["destination-text"]) {
+      return data["destination-text"];
+    }
+  } catch (e) {}
+
+  return "Не удалось перевести. Проверьте интернет.";
 }
 
 async function hybridTranslate(text, dir) {
@@ -185,7 +147,7 @@ const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecogni
 
 micBtn.addEventListener("click", () => {
   if (!SpeechRecognition) {
-    statusEl.textContent = "💡 Нажмите на поле ввода и используйте микрофон на клавиатуре телефона.";
+    statusEl.textContent = "💡 Нажмите на поле и используйте микрофон на клавиатуре.";
     statusEl.style.color = "#1565c0";
     inputField.focus();
     return;
@@ -223,7 +185,7 @@ micBtn.addEventListener("click", () => {
       isRecording = false;
       micBtn.classList.remove("recording");
       micBtn.textContent = "🎤";
-      statusEl.textContent = "💡 Нажмите на поле ввода и используйте микрофон на клавиатуре телефона.";
+      statusEl.textContent = "💡 Нажмите на поле и используйте микрофон на клавиатуре.";
       statusEl.style.color = "#1565c0";
       inputField.focus();
     };
@@ -241,7 +203,7 @@ micBtn.addEventListener("click", () => {
 
     recognition.start();
   } catch (e) {
-    statusEl.textContent = "💡 Нажмите на поле ввода и используйте микрофон на клавиатуре телефона.";
+    statusEl.textContent = "💡 Нажмите на поле и используйте микрофон на клавиатуре.";
     statusEl.style.color = "#1565c0";
     inputField.focus();
   }
