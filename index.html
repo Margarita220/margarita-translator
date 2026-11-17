@@ -79,20 +79,21 @@ dirBtn.addEventListener("click", () => {
 
 async function fetchOnlineTranslation(text, sl, tl) {
   try {
-    const res = await fetch("https://translated.net" + encodeURIComponent(text) + "&langpair=" + sl + "|" + tl);
+    const yaLang = (sl === "zh-CN") ? "zh-ru" : "ru-zh";
+    const yaUrl = "https://yandex.net" + yaLang + "&text=" + encodeURIComponent(text);
+    const res = await fetch(yaUrl);
     const data = await res.json();
-    if (data && data.responseData && data.responseData.translatedText) {
-      return data.responseData.translatedText;
+    if (data && Array.isArray(data.text) && data.text.length > 0) {
+      return data.text.join(" ");
     }
   } catch (e) {}
 
   try {
-    const lingvaSl = (sl === "zh-CN") ? "zh" : "ru";
-    const lingvaTl = (tl === "zh-CN") ? "zh" : "ru";
-    const res = await fetch("https://lingva.ml" + lingvaSl + "/" + lingvaTl + "/" + encodeURIComponent(text));
+    const pair = encodeURIComponent(sl + "|" + tl);
+    const res = await fetch("https://translated.net" + encodeURIComponent(text) + "&langpair=" + pair);
     const data = await res.json();
-    if (data && data.translation) {
-      return data.translation;
+    if (data && data.responseData && data.responseData.translatedText) {
+      return data.responseData.translatedText;
     }
   } catch (e) {}
 
